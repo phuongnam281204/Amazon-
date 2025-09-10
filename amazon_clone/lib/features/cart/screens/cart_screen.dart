@@ -5,6 +5,8 @@ import 'package:amazon_clone/features/cart/widgets/cart_product.dart';
 import 'package:amazon_clone/features/cart/widgets/cart_subtotal.dart';
 import 'package:amazon_clone/features/home/widgets/address_box.dart';
 import 'package:amazon_clone/features/search/screens/search_screen.dart';
+import 'package:amazon_clone/features/notifications/screens/notification_screen.dart';
+import 'package:amazon_clone/common/widgets/notification_badge.dart';
 import 'package:amazon_clone/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -105,14 +107,14 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                 ),
               ),
+              // Notification Icon with better positioning
               Container(
-                color: Colors.transparent,
-                height: 42,
-                margin: const EdgeInsets.symmetric(horizontal: 10),
-                child: Icon(
-                  Icons.mic,
-                  color: themeProvider.isDarkMode ? Colors.white : Colors.black,
-                  size: 25,
+                margin: const EdgeInsets.only(right: 8),
+                child: AnimatedNotificationIcon(
+                  onTap: () {
+                    Navigator.pushNamed(context, NotificationScreen.routeName);
+                  },
+                  size: 26,
                 ),
               ),
             ],

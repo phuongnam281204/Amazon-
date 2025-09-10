@@ -4,6 +4,7 @@ import 'package:amazon_clone/constants/theme.dart';
 import 'package:amazon_clone/features/account/services/wishlist_services.dart';
 import 'package:amazon_clone/features/product_details/screens/product_details_screen.dart';
 import 'package:amazon_clone/models/product.dart';
+import 'package:amazon_clone/providers/rating_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -36,6 +37,19 @@ class _WishlistScreenState extends State<WishlistScreen> {
       context: context,
     );
 
+    // Cache all product ratings in the rating provider
+    if (wishlistProducts.isNotEmpty && mounted) {
+      final ratingProvider = Provider.of<RatingProvider>(
+        context,
+        listen: false,
+      );
+      for (final product in wishlistProducts) {
+        if (product.id != null && product.rating != null) {
+          ratingProvider.cacheProductRatings(product.id!, product.rating!);
+        }
+      }
+    }
+
     setState(() {
       isLoading = false;
     });
@@ -55,17 +69,6 @@ class _WishlistScreenState extends State<WishlistScreen> {
       ProductDetailsScreen.routeName,
       arguments: product,
     );
-  }
-
-  double calculateAverageRating(Product product) {
-    if (product.rating == null || product.rating!.isEmpty) {
-      return 0.0;
-    }
-    double totalRating = 0;
-    for (int i = 0; i < product.rating!.length; i++) {
-      totalRating += product.rating![i].rating;
-    }
-    return totalRating / product.rating!.length;
   }
 
   @override
@@ -258,9 +261,8 @@ class _WishlistScreenState extends State<WishlistScreen> {
                 itemCount: wishlistProducts.length,
                 itemBuilder: (context, index) {
                   final product = wishlistProducts[index];
-                  final avgRating = calculateAverageRating(product);
 
-                  return _buildProductCard(product, avgRating);
+                  return _buildProductCard(product);
                 },
               ),
             ),
@@ -270,7 +272,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
     );
   }
 
-  Widget _buildProductCard(Product product, double avgRating) {
+  Widget _buildProductCard(Product product) {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return Hero(
@@ -473,21 +475,34 @@ class _WishlistScreenState extends State<WishlistScreen> {
                         ),
                         const SizedBox(height: 6),
 
-                        // Rating
-                        Row(
-                          children: [
-                            Flexible(child: Stars(rating: avgRating)),
-                            const SizedBox(width: 4),
-                            Text(
-                              '(${product.rating?.length ?? 0})',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: themeProvider.getTextSecondaryColor(
-                                  context,
+                        // Rating - Real-time from RatingProvider
+                        Consumer<RatingProvider>(
+                          builder: (context, ratingProvider, child) {
+                            final avgRating = ratingProvider.getAverageRating(
+                              product.id ?? '',
+                              product.rating,
+                            );
+                            final ratingCount = ratingProvider.getRatingCount(
+                              product.id ?? '',
+                              product.rating,
+                            );
+
+                            return Row(
+                              children: [
+                                Flexible(child: Stars(rating: avgRating)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '($ratingCount)',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: themeProvider.getTextSecondaryColor(
+                                      context,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ],
+                              ],
+                            );
+                          },
                         ),
                         const SizedBox(height: 6),
 

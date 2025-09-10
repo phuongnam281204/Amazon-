@@ -1,6 +1,8 @@
 import 'package:amazon_clone/constants/theme.dart';
 import 'package:amazon_clone/features/auth/services/auth_service.dart';
 import 'package:amazon_clone/features/splash/screens/splash_screen.dart';
+import 'package:amazon_clone/providers/notification_provider.dart';
+import 'package:amazon_clone/providers/rating_provider.dart';
 import 'package:amazon_clone/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:amazon_clone/router.dart';
@@ -12,6 +14,8 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (context) => UserProvider()),
         ChangeNotifierProvider(create: (context) => ThemeProvider()),
+        ChangeNotifierProvider(create: (context) => NotificationProvider()),
+        ChangeNotifierProvider(create: (context) => RatingProvider()),
       ],
       child: const MyApp(),
     ),
@@ -51,5 +55,3 @@ class _MyAppState extends State<MyApp> {
     );
   }
 }
-
-

@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'theme.dart';
 
 // API endpoint
-String uri = 'http://yourid:3000';  // yourid go to cmd and type ipconfig, copy ipv4 add to yourid
+String uri = 'http://192.168.1.2:3000';
 
 class GlobalVariables {
   // Deprecated - Use AppColors instead

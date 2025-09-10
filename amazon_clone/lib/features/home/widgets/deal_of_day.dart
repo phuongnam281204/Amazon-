@@ -4,6 +4,7 @@ import 'package:amazon_clone/constants/theme.dart';
 import 'package:amazon_clone/features/home/services/home_services.dart';
 import 'package:amazon_clone/features/product_details/screens/product_details_screen.dart';
 import 'package:amazon_clone/models/product.dart';
+import 'package:amazon_clone/providers/rating_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -41,6 +42,17 @@ class _DealOfDayState extends State<DealOfDay> with TickerProviderStateMixin {
 
   void fetchDealOfDay() async {
     product = await homeServices.fetchDealOfDay(context: context);
+
+    // Cache product ratings when data is fetched
+    if (product != null && product!.id != null && product!.rating != null) {
+      if (mounted) {
+        Provider.of<RatingProvider>(
+          context,
+          listen: false,
+        ).cacheProductRatings(product!.id!, product!.rating!);
+      }
+    }
+
     setState(() {});
   }
 
@@ -187,75 +199,78 @@ class _DealOfDayState extends State<DealOfDay> with TickerProviderStateMixin {
     );
   }
 
-  double _calculateAverageRating() {
-    if (product?.rating == null || product!.rating!.isEmpty) {
-      return 0.0;
-    }
-    double totalRating = 0;
-    for (int i = 0; i < product!.rating!.length; i++) {
-      totalRating += product!.rating![i].rating;
-    }
-    return totalRating / product!.rating!.length;
-  }
-
   // Build enhanced rating widget with theme support
   Widget _buildRatingWidget() {
-    double averageRating = _calculateAverageRating();
-    int totalReviews = product?.rating?.length ?? 0;
+    return Consumer<RatingProvider>(
+      builder: (context, ratingProvider, child) {
+        final averageRating = ratingProvider.getAverageRating(
+          product?.id ?? '',
+          product?.rating,
+        );
+        final totalReviews = ratingProvider.getRatingCount(
+          product?.id ?? '',
+          product?.rating,
+        );
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.orange.withOpacity(0.15),
-            Colors.amber.withOpacity(0.15),
-          ],
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.orange.withOpacity(0.3), width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Enhanced star rating display
-          ...List.generate(5, (index) {
-            if (index < averageRating.floor()) {
-              return const Icon(Icons.star, size: 14, color: Colors.orange);
-            } else if (index < averageRating) {
-              return const Icon(
-                Icons.star_half,
-                size: 14,
-                color: Colors.orange,
-              );
-            } else {
-              return Icon(Icons.star_border, size: 14, color: Colors.grey[400]);
-            }
-          }),
-          const SizedBox(width: 6),
-          Text(
-            averageRating.toStringAsFixed(1),
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-              color: Colors.orange,
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.orange.withOpacity(0.15),
+                Colors.amber.withOpacity(0.15),
+              ],
             ),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.orange.withOpacity(0.3), width: 1),
           ),
-          if (totalReviews > 0) ...[
-            const SizedBox(width: 4),
-            Text(
-              '($totalReviews)',
-              style: TextStyle(
-                fontSize: 11,
-                color: Theme.of(
-                  context,
-                ).textTheme.bodyMedium?.color?.withOpacity(0.7),
-                fontWeight: FontWeight.w500,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Enhanced star rating display
+              ...List.generate(5, (index) {
+                if (index < averageRating.floor()) {
+                  return const Icon(Icons.star, size: 14, color: Colors.orange);
+                } else if (index < averageRating) {
+                  return const Icon(
+                    Icons.star_half,
+                    size: 14,
+                    color: Colors.orange,
+                  );
+                } else {
+                  return Icon(
+                    Icons.star_border,
+                    size: 14,
+                    color: Colors.grey[400],
+                  );
+                }
+              }),
+              const SizedBox(width: 6),
+              Text(
+                averageRating.toStringAsFixed(1),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.orange,
+                ),
               ),
-            ),
-          ],
-        ],
-      ),
+              if (totalReviews > 0) ...[
+                const SizedBox(width: 4),
+                Text(
+                  '($totalReviews)',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.color?.withOpacity(0.7),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 

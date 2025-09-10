@@ -5,6 +5,7 @@ import 'package:amazon_clone/features/product_details/services/product_details_s
 import 'package:amazon_clone/features/search/screens/search_screen.dart';
 import 'package:amazon_clone/models/order.dart';
 import 'package:amazon_clone/providers/user_provider.dart';
+import 'package:amazon_clone/services/notification_service.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -21,6 +22,7 @@ class OrderDetailScreen extends StatefulWidget {
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
   int currentStep = 0;
   final AdminServices adminServices = AdminServices();
+  final NotificationService notificationService = NotificationService();
 
   void navigateToSearchScreen(String query) {
     Navigator.pushNamed(context, SearchScreen.routeName, arguments: query);
@@ -46,12 +48,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
-  // Cancel order function
+  // Cancel order function - Request cancellation instead of direct cancel
   void cancelOrder() {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
+        String cancelReason = '';
+        final TextEditingController reasonController = TextEditingController();
+
         return AlertDialog(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
@@ -63,18 +68,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  color: Colors.red[50],
+                  color: Colors.orange[50],
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: Icon(
-                  Icons.warning_amber_rounded,
-                  color: Colors.red[500],
+                  Icons.help_outline,
+                  color: Colors.orange[500],
                   size: 30,
                 ),
               ),
               const SizedBox(height: 16),
               const Text(
-                'Cancel Order',
+                'Request Order Cancellation',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -88,7 +93,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Are you sure you want to cancel this order?',
+                'Please provide a reason for cancelling this order. An admin will review your request.',
                 style: TextStyle(
                   fontSize: 16,
                   color: Colors.black54,
@@ -96,24 +101,43 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ),
                 textAlign: TextAlign.center,
               ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: reasonController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'Enter your reason for cancellation...',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  contentPadding: const EdgeInsets.all(16),
+                ),
+                onChanged: (value) {
+                  cancelReason = value;
+                },
+              ),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.red[50],
+                  color: Colors.orange[50],
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.red[100]!),
+                  border: Border.all(color: Colors.orange[100]!),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: Colors.red[600], size: 20),
+                    Icon(
+                      Icons.info_outline,
+                      color: Colors.orange[600],
+                      size: 20,
+                    ),
                     const SizedBox(width: 12),
                     const Expanded(
                       child: Text(
-                        'This action cannot be undone',
+                        'Your request will be reviewed by an admin',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.red,
+                          color: Colors.orange,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -137,7 +161,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       ),
                     ),
                     child: const Text(
-                      'Keep Order',
+                      'Cancel',
                       style: TextStyle(
                         color: Colors.black54,
                         fontSize: 16,
@@ -150,11 +174,22 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () {
+                      if (cancelReason.trim().isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Please provide a reason for cancellation',
+                            ),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                        return;
+                      }
                       Navigator.of(context).pop();
-                      _performCancelOrder();
+                      _requestCancellation(cancelReason.trim());
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red[500],
+                      backgroundColor: Colors.orange[500],
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -163,7 +198,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       elevation: 0,
                     ),
                     child: const Text(
-                      'Cancel Order',
+                      'Submit Request',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -179,8 +214,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
-  // Perform cancel order function
-  void _performCancelOrder() {
+  // Request cancellation function
+  void _requestCancellation(String reason) {
     // Show loading indicator
     showDialog(
       context: context,
@@ -199,11 +234,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               children: [
                 const CircularProgressIndicator(
                   strokeWidth: 3,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
                 ),
                 const SizedBox(height: 20),
                 const Text(
-                  'Cancelling Order...',
+                  'Submitting Request...',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -217,18 +252,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       },
     );
 
-    // Call API to cancel order through AdminServices with status 4
-    adminServices.changeOrderStatusUser(
+    // Submit cancellation request
+    notificationService.requestOrderCancellation(
       context: context,
-      status: 4, // Status 4 = Cancel Order
-      order: widget.order,
+      orderId: widget.order.id,
+      reason: reason,
       onSuccess: () {
         // Close loading dialog
         Navigator.of(context).pop();
-
-        setState(() {
-          currentStep = 4; // Update UI to "Order Cancelled" status
-        });
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -255,7 +286,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Order Cancelled',
+                          'Request Submitted',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
@@ -263,7 +294,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                           ),
                         ),
                         Text(
-                          'Your order has been cancelled successfully',
+                          'Your cancellation request has been sent to admin for review',
                           style: TextStyle(fontSize: 14, color: Colors.white70),
                         ),
                       ],
@@ -272,7 +303,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ],
               ),
             ),
-            backgroundColor: Colors.red[500],
+            backgroundColor: Colors.orange[500],
             duration: const Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(

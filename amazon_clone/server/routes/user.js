@@ -4,6 +4,8 @@ const auth = require('../middlewares/auth');
 const Order = require("../models/order");
 const { Product } = require("../models/product");
 const User = require("../models/user");
+const Notification = require("../models/notification");
+const CancelRequest = require("../models/cancelRequest");
 
 userRouter.post("/api/add-to-cart", auth, async (req, res) => {
   try {
@@ -31,6 +33,22 @@ userRouter.post("/api/add-to-cart", auth, async (req, res) => {
       }
     }
     user = await user.save();
+    
+    // Create add to cart notification
+    try {
+      await Notification.create({
+        userId: req.user,
+        title: 'Product Added to Cart',
+        message: `You have successfully added "${product.name}" to your cart.`,
+        type: 'add_to_cart',
+        data: { productName: product.name, productId: product._id },
+        createdAt: new Date().getTime()
+      });
+    } catch (notificationError) {
+      // Silent fail for notification - don't block cart operation
+      console.log('Failed to create add to cart notification:', notificationError);
+    }
+    
     res.json(user);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -135,6 +153,26 @@ userRouter.post("/api/order", auth, async (req, res) => {
       paymentMethod: paymentMethod, // Add payment method
     });
     order = await order.save();
+    
+    // Create payment success notification
+    try {
+      await Notification.create({
+        userId: req.user,
+        title: 'Payment Successful',
+        message: `Your payment of $${totalPrice.toFixed(2)} has been processed successfully.`,
+        type: 'payment_success',
+        data: { 
+          orderId: order._id, 
+          amount: totalPrice,
+          paymentMethod: paymentMethod
+        },
+        createdAt: new Date().getTime()
+      });
+    } catch (notificationError) {
+      // Silent fail for notification - don't block order operation
+      console.log('Failed to create payment success notification:', notificationError);
+    }
+    
     res.json(order);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -188,6 +226,130 @@ userRouter.get("/api/wishlist", auth, async (req, res) => {
   try {
     const user = await User.findById(req.user).populate('wishlist');
     res.json(user.wishlist);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get user notifications
+userRouter.get("/api/notifications", auth, async (req, res) => {
+  try {
+    const notifications = await Notification.find({ userId: req.user })
+      .sort({ createdAt: -1 });
+    res.json(notifications);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get unread notifications count
+userRouter.get("/api/notifications/unread-count", auth, async (req, res) => {
+  try {
+    const count = await Notification.countDocuments({ 
+      userId: req.user, 
+      isRead: false 
+    });
+    res.json({ count });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Mark notification as read
+userRouter.patch("/api/notifications/:id/read", auth, async (req, res) => {
+  try {
+    const notification = await Notification.findByIdAndUpdate(
+      req.params.id,
+      { isRead: true },
+      { new: true }
+    );
+    res.json(notification);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Mark all notifications as read
+userRouter.patch("/api/notifications/mark-all-read", auth, async (req, res) => {
+  try {
+    await Notification.updateMany(
+      { userId: req.user },
+      { isRead: true }
+    );
+    res.json({ message: "All notifications marked as read" });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Create notification
+userRouter.post("/api/notifications/create", auth, async (req, res) => {
+  try {
+    const { type, title, message, data } = req.body;
+    
+    const notification = new Notification({
+      userId: req.user,
+      type,
+      title,
+      message,
+      data,
+      createdAt: new Date().getTime()
+    });
+    
+    await notification.save();
+    res.json({ message: "Notification created successfully" });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Request order cancellation
+userRouter.post("/api/orders/request-cancel", auth, async (req, res) => {
+  try {
+    const { orderId, reason } = req.body;
+    
+    // Check if order exists and belongs to user
+    const order = await Order.findOne({ _id: orderId, userId: req.user });
+    if (!order) {
+      return res.status(404).json({ msg: "Order not found" });
+    }
+    
+    // Check if order can be cancelled (not already delivered or cancelled)
+    if (order.status >= 3) {
+      return res.status(400).json({ msg: "Order cannot be cancelled" });
+    }
+    
+    // Check if there's already a pending cancel request
+    const existingRequest = await CancelRequest.findOne({ 
+      orderId, 
+      status: 'pending' 
+    });
+    if (existingRequest) {
+      return res.status(400).json({ msg: "Cancel request already pending" });
+    }
+    
+    // Create cancel request
+    const cancelRequest = new CancelRequest({
+      orderId,
+      userId: req.user,
+      reason,
+    });
+    
+    await cancelRequest.save();
+    
+    // Create notification for admins
+    const adminUsers = await User.find({ type: 'admin' });
+    const notifications = adminUsers.map(admin => ({
+      userId: admin._id,
+      title: 'New Order Cancellation Request',
+      message: `Order #${orderId.slice(-8)} cancellation requested`,
+      type: 'order_cancel_request',
+      data: { orderId, reason },
+    }));
+    
+    await Notification.insertMany(notifications);
+    
+    res.json({ message: "Cancellation request submitted successfully" });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

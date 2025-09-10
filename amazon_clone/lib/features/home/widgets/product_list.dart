@@ -3,7 +3,9 @@ import 'package:amazon_clone/common/widgets/stars.dart';
 import 'package:amazon_clone/features/home/services/home_services.dart';
 import 'package:amazon_clone/features/product_details/screens/product_details_screen.dart';
 import 'package:amazon_clone/models/product.dart';
+import 'package:amazon_clone/providers/rating_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class ProductList extends StatefulWidget {
   const ProductList({super.key});
@@ -39,6 +41,19 @@ class _ProductListState extends State<ProductList> {
           products = fetchedProducts;
           isLoading = false;
         });
+
+        // Cache all product ratings in the rating provider
+        final ratingProvider = Provider.of<RatingProvider>(
+          context,
+          listen: false,
+        );
+        if (products != null) {
+          for (final product in products!) {
+            if (product.id != null && product.rating != null) {
+              ratingProvider.cacheProductRatings(product.id!, product.rating!);
+            }
+          }
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -167,7 +182,6 @@ class _ProductListState extends State<ProductList> {
             itemCount: products!.length,
             itemBuilder: (context, index) {
               final product = products![index];
-              final avgRating = calculateAverageRating(product);
 
               return Hero(
                 tag: 'product-${product.id ?? 'product-$index'}',
@@ -337,25 +351,40 @@ class _ProductListState extends State<ProductList> {
                                     ),
                                   ),
                                   const SizedBox(height: 4), // Giảm spacing
-                                  // Rating
-                                  Row(
-                                    children: [
-                                      Flexible(
-                                        child: Stars(rating: avgRating),
-                                      ), // Flexible để tránh overflow
-                                      const SizedBox(width: 3),
-                                      Text(
-                                        '(${product.rating?.length ?? 0})',
-                                        style: TextStyle(
-                                          fontSize: 10, // Giảm size
-                                          color: Theme.of(context)
-                                              .textTheme
-                                              .bodySmall
-                                              ?.color
-                                              ?.withOpacity(0.7),
-                                        ),
-                                      ),
-                                    ],
+                                  // Rating - Real-time from RatingProvider
+                                  Consumer<RatingProvider>(
+                                    builder: (context, ratingProvider, child) {
+                                      final avgRating = ratingProvider
+                                          .getAverageRating(
+                                            product.id ?? '',
+                                            product.rating,
+                                          );
+                                      final ratingCount = ratingProvider
+                                          .getRatingCount(
+                                            product.id ?? '',
+                                            product.rating,
+                                          );
+
+                                      return Row(
+                                        children: [
+                                          Flexible(
+                                            child: Stars(rating: avgRating),
+                                          ),
+                                          const SizedBox(width: 3),
+                                          Text(
+                                            '($ratingCount)',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              color: Theme.of(context)
+                                                  .textTheme
+                                                  .bodySmall
+                                                  ?.color
+                                                  ?.withOpacity(0.7),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
                                   ),
                                   const SizedBox(height: 4),
 

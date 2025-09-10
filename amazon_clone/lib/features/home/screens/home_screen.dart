@@ -5,6 +5,8 @@ import 'package:amazon_clone/features/home/widgets/deal_of_day.dart';
 import 'package:amazon_clone/features/home/widgets/product_list.dart';
 import 'package:amazon_clone/features/home/widgets/top_categories.dart';
 import 'package:amazon_clone/features/search/screens/search_screen.dart';
+import 'package:amazon_clone/features/notifications/screens/notification_screen.dart';
+import 'package:amazon_clone/common/widgets/notification_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -158,17 +160,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           .withOpacity(0.2),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: IconButton(
-                  onPressed: () {
-                    // TODO: Implement voice search
+                child: AnimatedNotificationIcon(
+                  onTap: () {
+                    Navigator.pushNamed(context, NotificationScreen.routeName);
                   },
-                  icon: Icon(
-                    Icons.mic,
-                    color: themeProvider.isDarkMode
-                        ? Colors.white
-                        : Colors.white,
-                    size: 24,
-                  ),
+                  iconColor: themeProvider.isDarkMode
+                      ? Colors.white
+                      : Colors.white,
+                  size: 24,
                 ),
               ),
             ],

@@ -4,16 +4,17 @@ import 'package:amazon_clone/features/home/widgets/address_box.dart';
 import 'package:amazon_clone/features/product_details/screens/product_details_screen.dart';
 import 'package:amazon_clone/features/search/services/search_services.dart';
 import 'package:amazon_clone/features/search/widgets/searched_product.dart';
+import 'package:amazon_clone/features/notifications/screens/notification_screen.dart';
+import 'package:amazon_clone/common/widgets/notification_badge.dart';
 import 'package:amazon_clone/models/product.dart';
+import 'package:amazon_clone/providers/rating_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class SearchScreen extends StatefulWidget {
   static const String routeName = '/search-screen';
   final String searchQuery;
-  const SearchScreen({
-    super.key, 
-    required this.searchQuery
-  });
+  const SearchScreen({super.key, required this.searchQuery});
 
   @override
   State<SearchScreen> createState() => _SearchScreenState();
@@ -31,18 +32,28 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void fetchSearchedProducts() async {
     products = await SearchServices().fetchSearchedProduct(
-      context: context, 
+      context: context,
       searchQuery: widget.searchQuery,
     );
+
+    // Cache all product ratings in the rating provider
+    if (products != null && mounted) {
+      final ratingProvider = Provider.of<RatingProvider>(
+        context,
+        listen: false,
+      );
+      for (final product in products!) {
+        if (product.id != null && product.rating != null) {
+          ratingProvider.cacheProductRatings(product.id!, product.rating!);
+        }
+      }
+    }
+
     setState(() {});
   }
 
   void navigateToSearchScreen(String query) {
-    Navigator.pushNamed(
-      context, 
-      SearchScreen.routeName,
-      arguments: query,
-    );
+    Navigator.pushNamed(context, SearchScreen.routeName, arguments: query);
   }
 
   @override
@@ -104,47 +115,43 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
                 ),
               ),
+              // Notification Icon with better positioning
               Container(
-                color: Colors.transparent,
-                height: 42,
-                margin: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                ),
-                child: const Icon(
-                  Icons.mic, 
-                  color: Colors.black, 
-                  size: 25,
+                margin: const EdgeInsets.only(right: 8),
+                child: AnimatedNotificationIcon(
+                  onTap: () {
+                    Navigator.pushNamed(context, NotificationScreen.routeName);
+                  },
+                  size: 26,
                 ),
               ),
             ],
           ),
         ),
       ),
-      body:  products == null 
-    ? const Loader() 
-    : Column(
-        children: [
-          const AddressBox(),
-          const SizedBox(height: 10),
-          Expanded(
-            child: ListView.builder(
-              itemCount: products!.length,
-              itemBuilder: (context, index) {
-                return GestureDetector(
-                  onTap: () => Navigator.pushNamed(
-                    context, 
-                    ProductDetailsScreen.routeName,
-                    arguments: products![index],
+      body: products == null
+          ? const Loader()
+          : Column(
+              children: [
+                const AddressBox(),
+                const SizedBox(height: 10),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: products!.length,
+                    itemBuilder: (context, index) {
+                      return GestureDetector(
+                        onTap: () => Navigator.pushNamed(
+                          context,
+                          ProductDetailsScreen.routeName,
+                          arguments: products![index],
+                        ),
+                        child: SearchedProduct(product: products![index]),
+                      );
+                    },
                   ),
-                  child: SearchedProduct(
-                    product: products![index],
-                  ),
-                );
-              },
+                ),
+              ],
             ),
-          ),
-        ],
-      ),
     );
   }
 }

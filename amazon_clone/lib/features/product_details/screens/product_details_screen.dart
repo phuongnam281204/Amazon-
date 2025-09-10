@@ -9,6 +9,7 @@ import 'package:amazon_clone/features/search/screens/search_screen.dart';
 import 'package:amazon_clone/models/product.dart';
 import 'package:amazon_clone/models/user.dart';
 import 'package:amazon_clone/providers/user_provider.dart';
+import 'package:amazon_clone/providers/rating_provider.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
@@ -136,6 +137,16 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
     if (totalRating != 0) {
       avgRating = totalRating / widget.product.rating!.length;
+    }
+
+    // Cache product ratings in rating provider
+    if (widget.product.id != null && widget.product.rating != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Provider.of<RatingProvider>(
+          context,
+          listen: false,
+        ).cacheProductRatings(widget.product.id!, widget.product.rating!);
+      });
     }
 
     // Check if product is in wishlist
@@ -266,59 +277,85 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Product Name Card
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [themeProvider.getCardShadow(context)],
-                border: Border.all(
-                  color: themeProvider.getBorderColor(context),
-                  width: 0.5,
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.product.name,
-                      style: themeProvider.getHeadingStyle(
-                        context,
-                        fontSize: 24,
-                      ),
+            // Product Name Card with Real-time Rating
+            Consumer<RatingProvider>(
+              builder: (context, ratingProvider, child) {
+                // Use real-time rating data if available, otherwise use original data
+                final currentRating = ratingProvider.getAverageRating(
+                  widget.product.id ?? '',
+                  widget.product.rating,
+                );
+                final ratingCount = ratingProvider.getRatingCount(
+                  widget.product.id ?? '',
+                  widget.product.rating,
+                );
+
+                return Container(
+                  margin: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).cardColor,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [themeProvider.getCardShadow(context)],
+                    border: Border.all(
+                      color: themeProvider.getBorderColor(context),
+                      width: 0.5,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Column(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Stars(rating: avgRating),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: themeProvider
-                              .getAmazonOrangeColor(context)
-                              .withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
+                      Expanded(
                         child: Text(
-                          '${avgRating.toStringAsFixed(1)} ⭐',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: themeProvider.getAmazonOrangeColor(context),
+                          widget.product.name,
+                          style: themeProvider.getHeadingStyle(
+                            context,
+                            fontSize: 24,
                           ),
                         ),
                       ),
+                      const SizedBox(width: 16),
+                      Column(
+                        children: [
+                          Stars(rating: currentRating),
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: themeProvider
+                                  .getAmazonOrangeColor(context)
+                                  .withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(
+                              '${currentRating.toStringAsFixed(1)} ⭐',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: themeProvider.getAmazonOrangeColor(
+                                  context,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '($ratingCount reviews)',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: themeProvider.getTextSecondaryColor(
+                                context,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
+                );
+              },
             ),
 
             const SizedBox(height: 16),
@@ -643,10 +680,46 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                         color: themeProvider.getAmazonOrangeColor(context),
                       ),
                       onRatingUpdate: (rating) {
-                        productDetailsService.rateProduct(
+                        // Update rating using provider for immediate UI feedback
+                        final ratingProvider = Provider.of<RatingProvider>(
+                          context,
+                          listen: false,
+                        );
+                        ratingProvider.updateRating(
                           context: context,
                           product: widget.product,
                           rating: rating,
+                          onSuccess: () {
+                            // Update local myRating for immediate feedback
+                            setState(() {
+                              myRating = rating;
+                            });
+
+                            // Show success feedback
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.star,
+                                      color: Colors.orange,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Rating updated: ${rating.toStringAsFixed(1)} stars',
+                                    ),
+                                  ],
+                                ),
+                                backgroundColor: Colors.green,
+                                duration: const Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            );
+                          },
                         );
                       },
                     ),

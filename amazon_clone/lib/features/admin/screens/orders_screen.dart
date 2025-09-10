@@ -1,5 +1,6 @@
 import 'package:amazon_clone/common/widgets/loader.dart';
 import 'package:amazon_clone/features/account/widgets/singel_product.dart';
+import 'package:amazon_clone/features/admin/screens/cancel_requests_screen.dart';
 import 'package:amazon_clone/features/admin/services/admin_services.dart';
 import 'package:amazon_clone/features/order_details/screens/order_details.dart';
 import 'package:amazon_clone/models/order.dart';
@@ -24,150 +25,209 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   void fetchOrders() async {
     orders = await adminServices.fetchAllOrders(context);
+    // Sắp xếp orders theo thứ tự mới nhất đến cũ nhất
+    orders?.sort((a, b) => b.orderedAt.compareTo(a.orderedAt));
     setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    return orders == null
-        ? const Loader()
-        : Container(
-            color: Colors.grey[50],
-            child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: GridView.builder(
-                itemCount: orders!.length,
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  childAspectRatio: 0.72,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Orders Management',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Colors.blue.shade600, Colors.blue.shade800],
+            ),
+          ),
+        ),
+        elevation: 0,
+        actions: [
+          // Cancel Requests Button
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pushNamed(context, CancelRequestsScreen.routeName);
+              },
+              icon: const Icon(
+                Icons.cancel_outlined,
+                color: Colors.white,
+                size: 18,
+              ),
+              label: const Text(
+                'Cancel Requests',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
                 ),
-                itemBuilder: (context, index) {
-                  final orderData = orders![index];
-                  return GestureDetector(
-                    onTap: () {
-                      Navigator.pushNamed(
-                        context,
-                        OrderDetailScreen.routeName,
-                        arguments: orderData,
-                      );
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Product Image with gradient overlay
-                          Expanded(
-                            flex: 3,
-                            child: Stack(
-                              children: [
-                                Container(
-                                  width: double.infinity,
-                                  decoration: const BoxDecoration(
-                                    borderRadius: BorderRadius.only(
-                                      topLeft: Radius.circular(12),
-                                      topRight: Radius.circular(12),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.shade600,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: orders == null
+          ? const Loader()
+          : Container(
+              color: Colors.grey[50],
+              child: Padding(
+                padding: const EdgeInsets.all(12.0),
+                child: GridView.builder(
+                  itemCount: orders!.length,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 0.72,
+                  ),
+                  itemBuilder: (context, index) {
+                    final orderData = orders![index];
+                    return GestureDetector(
+                      onTap: () {
+                        Navigator.pushNamed(
+                          context,
+                          OrderDetailScreen.routeName,
+                          arguments: orderData,
+                        );
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Product Image with gradient overlay
+                            Expanded(
+                              flex: 3,
+                              child: Stack(
+                                children: [
+                                  Container(
+                                    width: double.infinity,
+                                    decoration: const BoxDecoration(
+                                      borderRadius: BorderRadius.only(
+                                        topLeft: Radius.circular(12),
+                                        topRight: Radius.circular(12),
+                                      ),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: const BorderRadius.only(
+                                        topLeft: Radius.circular(12),
+                                        topRight: Radius.circular(12),
+                                      ),
+                                      child: SingelProduct(
+                                        image:
+                                            orderData.products.isNotEmpty &&
+                                                orderData
+                                                    .products[0]
+                                                    .images
+                                                    .isNotEmpty
+                                            ? orderData.products[0].images[0]
+                                            : '',
+                                      ),
                                     ),
                                   ),
-                                  child: ClipRRect(
-                                    borderRadius: const BorderRadius.only(
-                                      topLeft: Radius.circular(12),
-                                      topRight: Radius.circular(12),
-                                    ),
-                                    child: SingelProduct(
-                                      image:
-                                          orderData.products.isNotEmpty &&
-                                              orderData
-                                                  .products[0]
-                                                  .images
-                                                  .isNotEmpty
-                                          ? orderData.products[0].images[0]
-                                          : '',
-                                    ),
-                                  ),
-                                ),
-                                // Product count badge if more than 1
-                                if (orderData.products.length > 1)
-                                  Positioned(
-                                    top: 8,
-                                    right: 8,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 6,
-                                        vertical: 2,
-                                      ),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.7),
-                                        borderRadius: BorderRadius.circular(10),
-                                      ),
-                                      child: Text(
-                                        '+${orderData.products.length - 1}',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
+                                  // Product count badge if more than 1
+                                  if (orderData.products.length > 1)
+                                    Positioned(
+                                      top: 8,
+                                      right: 8,
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.7),
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '+${orderData.products.length - 1}',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
 
-                          // Order Info
-                          Expanded(
-                            flex: 2,
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      // Order ID with icon
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.receipt_outlined,
-                                            size: 14,
-                                            color: Colors.grey[600],
-                                          ),
-                                          const SizedBox(width: 4),
-                                          Expanded(
-                                            child: Text(
-                                              'Order #${orderData.id.substring(orderData.id.length - 6)}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey[700],
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
+                            // Order Info
+                            Expanded(
+                              flex: 2,
+                              child: Padding(
+                                padding: const EdgeInsets.all(12.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        // Order ID with icon
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.receipt_outlined,
+                                              size: 14,
+                                              color: Colors.grey[600],
                                             ),
-                                          ),
-                                        ],
-                                      ),
+                                            const SizedBox(width: 4),
+                                            Expanded(
+                                              child: Text(
+                                                'Order #${orderData.id.substring(orderData.id.length - 6)}',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.grey[700],
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
 
-                                      const SizedBox(height: 6),
+                                        const SizedBox(height: 6),
 
-                                      // Total Price with enhanced styling
-                                      if (orderData.totalPrice != null)
+                                        // Total Price with enhanced styling
                                         Container(
                                           padding: const EdgeInsets.symmetric(
                                             horizontal: 8,
@@ -193,31 +253,31 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                             ),
                                           ),
                                         ),
-                                    ],
-                                  ),
+                                      ],
+                                    ),
 
-                                  // Order date (if available)
-                                  if (orderData.orderedAt != null)
+                                    // Order date
                                     Text(
-                                      _formatDate(orderData.orderedAt!),
+                                      _formatDate(orderData.orderedAt),
                                       style: TextStyle(
                                         fontSize: 10,
                                         color: Colors.grey[500],
                                         fontStyle: FontStyle.italic,
                                       ),
                                     ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
-          );
+    );
   }
 
   String _formatDate(int timestamp) {

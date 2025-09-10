@@ -4,12 +4,44 @@ import 'package:amazon_clone/features/account/widgets/below_app_bar.dart';
 // import 'package:amazon_clone/features/account/widgets/live_stream_button.dart';
 import 'package:amazon_clone/features/account/widgets/orders.dart';
 import 'package:amazon_clone/features/account/widgets/top_buttons.dart';
+import 'package:amazon_clone/features/notifications/screens/notification_screen.dart';
+import 'package:amazon_clone/providers/notification_provider.dart';
 import 'package:amazon_clone/common/widgets/theme_toggle.dart';
+import 'package:amazon_clone/common/widgets/notification_badge.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-class AccountScreen extends StatelessWidget {
+class AccountScreen extends StatefulWidget {
   const AccountScreen({super.key});
+
+  @override
+  State<AccountScreen> createState() => _AccountScreenState();
+}
+
+class _AccountScreenState extends State<AccountScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Fetch unread notifications count when screen loads and start periodic refresh
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final notificationProvider = Provider.of<NotificationProvider>(
+        context,
+        listen: false,
+      );
+      notificationProvider.fetchUnreadCount(context);
+      notificationProvider.startPeriodicRefresh(context);
+    });
+  }
+
+  @override
+  void dispose() {
+    // Stop periodic refresh when leaving the screen
+    Provider.of<NotificationProvider>(
+      context,
+      listen: false,
+    ).stopPeriodicRefresh();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,17 +71,15 @@ class AccountScreen extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.only(left: 15, right: 15),
-                    child: Row(
-                      children: [
-                        const Padding(
-                          padding: EdgeInsets.only(right: 15),
-                          child: Icon(Icons.notifications_outlined),
-                        ),
-                        const Icon(Icons.search_outlined),
-                        const SizedBox(width: 10),
-                        const ThemeToggleButton(),
-                      ],
+                    padding: const EdgeInsets.only(right: 8),
+                    child: AnimatedNotificationIcon(
+                      onTap: () {
+                        Navigator.pushNamed(
+                          context,
+                          NotificationScreen.routeName,
+                        );
+                      },
+                      size: 26,
                     ),
                   ),
                 ],

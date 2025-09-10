@@ -3,6 +3,8 @@ import 'package:amazon_clone/constants/theme.dart';
 import 'package:amazon_clone/features/account/services/account_services.dart';
 import 'package:amazon_clone/features/order_details/screens/order_details.dart';
 import 'package:amazon_clone/features/search/screens/search_screen.dart';
+import 'package:amazon_clone/features/notifications/screens/notification_screen.dart';
+import 'package:amazon_clone/common/widgets/notification_badge.dart';
 import 'package:amazon_clone/models/order.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -434,14 +436,26 @@ class _AllOrdersScreenState extends State<AllOrdersScreen> {
                       ),
                     ),
                   ),
-                  Container(
-                    color: Colors.transparent,
-                    height: 42,
-                    margin: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Icon(
-                      Icons.mic,
-                      color: Theme.of(context).iconTheme.color,
-                      size: 25,
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pushNamed(
+                        context,
+                        NotificationScreen.routeName,
+                      );
+                    },
+                    child: Container(
+                      color: Colors.transparent,
+                      height: 42,
+                      margin: const EdgeInsets.symmetric(horizontal: 10),
+                      child: AnimatedNotificationIcon(
+                        onTap: () {
+                          Navigator.pushNamed(
+                            context,
+                            NotificationScreen.routeName,
+                          );
+                        },
+                        size: 25,
+                      ),
                     ),
                   ),
                 ],

@@ -3,8 +3,9 @@ import 'package:amazon_clone/constants/global_variables.dart';
 import 'package:amazon_clone/features/home/services/home_services.dart';
 import 'package:amazon_clone/features/product_details/screens/product_details_screen.dart';
 import 'package:amazon_clone/models/product.dart';
-import 'package:amazon_clone/models/rating.dart';
+import 'package:amazon_clone/providers/rating_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class CategoryDealsScreen extends StatefulWidget {
   static const String routeName = '/category-deals';
@@ -30,20 +31,21 @@ class _CategoryDealsScreenState extends State<CategoryDealsScreen> {
       context: context,
       category: widget.category,
     );
+
+    // Cache all product ratings in the rating provider
+    if (productList != null && mounted) {
+      final ratingProvider = Provider.of<RatingProvider>(
+        context,
+        listen: false,
+      );
+      for (final product in productList!) {
+        if (product.id != null && product.rating != null) {
+          ratingProvider.cacheProductRatings(product.id!, product.rating!);
+        }
+      }
+    }
+
     setState(() {});
-  }
-
-  String _getAverageRating(List<Rating>? ratings) {
-    if (ratings == null || ratings.isEmpty) {
-      return '0.0';
-    }
-
-    double sum = 0;
-    for (var rating in ratings) {
-      sum += rating.rating;
-    }
-    double average = sum / ratings.length;
-    return average.toStringAsFixed(1);
   }
 
   @override
@@ -278,34 +280,42 @@ class _CategoryDealsScreenState extends State<CategoryDealsScreen> {
                           ),
                         ),
                         const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.green[100],
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.star,
-                                size: 12,
-                                color: Colors.orange[600],
+                        Consumer<RatingProvider>(
+                          builder: (context, ratingProvider, child) {
+                            final avgRating = ratingProvider.getAverageRating(
+                              product.id ?? '',
+                              product.rating,
+                            );
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
                               ),
-                              const SizedBox(width: 2),
-                              Text(
-                                _getAverageRating(product.rating),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.green[700],
-                                ),
+                              decoration: BoxDecoration(
+                                color: Colors.green[100],
+                                borderRadius: BorderRadius.circular(4),
                               ),
-                            ],
-                          ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.star,
+                                    size: 12,
+                                    color: Colors.orange[600],
+                                  ),
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    avgRating.toStringAsFixed(1),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.green[700],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                       ],
                     ),
